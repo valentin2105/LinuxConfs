@@ -1,0 +1,112 @@
+#! /bin/bash
+tput bold
+echo
+echo
+echo --------------------------------------------
+echo "Vous cherchez l'IP du modem ?" 
+echo --------------------------------------------
+echo
+tput sgr0
+### On vérifie si c'est un poste de conf-modem ?
+int=wlan0
+#if [ -f /srv/confmodem-FLAG ]
+#        then
+#		int="p3p1"
+#	else
+#		int="p1p1"
+#fi
+
+for i in 1 0 2 100 10 16; do
+
+ for j in 1 254 250; do
+   ip="192.168.$i.$j"
+   ping=$(ping -I $int $ip -c 1 -W 1)
+   verif=`echo $?`
+
+   echo "Test pour $ip ..."
+   if [ "$verif" == "0" ]
+   then 
+	# Check d'une reponse nmap port 80
+        http=$(nmap -p 80 $ip |grep open)
+	verifhttp=`echo $?`
+		# Si le nmap répond correctement, on propose d'ouvrir le navigateur
+		if [ "$verifhttp" == "0" ]
+   		then
+			#### On a trouvé l'IP 
+			tput bold
+			tput setaf 4
+			echo "On a un gagnant sur http://$ip/"
+			### On affiche l'adresse MAC
+			macaddr=$(arp -an $ip |cut -d ' ' -f4)
+			### On va tester différents login/password  
+			wget=$(wget --quiet $ip)
+			verifwget=`echo $?`
+				if [ "$verifwget" == "0" ]
+				then echo
+					echo "Adresse MAC : $macaddr"
+					tput sgr0
+		          		read -p "Ouvrir le navigateur ? [CTRL+C pour quitter] " -n 1 -r
+					firefox http://$ip/ &>1 
+				exit 0
+				else
+					for i in admin:admin admin:password admin: :admin root:root root:Root123 user:user Admin:admin admin:1234 login:admin admin:smcadmin Administrator: root:12345 root:1234 login:admin admin:epicrouter :secret root: User: webadmin:webadmin Admin:1234 cisco:cisco Any: Administrator:admin :epicrouter :password :1234 login:admin Admin:epicrouter admin:operator admin:motorola :smcadmin admin:barricade admin:sysadmin super:super   ; do	
+					user=`echo $i |cut -d':' -f1`
+					password=`echo $i |cut -d':' -f2`
+					tput sgr0
+					echo "Test du login '$user' et du mot de passe '$password' sur $ip"
+					wget --quiet --user=$user --password=$password http://$ip:80/ -O /dev/null
+					verifpass=`echo $?`
+		                        	if [ "$verifpass" == "0" ]
+		                 	        then 
+							tput bold
+							tput setaf 2
+							echo "Adresse IP : $ip"
+							echo "Adresse MAC : $macaddr"
+							echo "Login : $user"
+							echo "Mot de passe : $password"
+							echo "Lien direct : http://$user:$password@$ip:80/"
+							### On ouvre firefox ?
+							echo
+							tput sgr0
+							read -p "Ouvrir le navigateur ? [CTRL+C pour quitter] " -n 1 -r
+							firefox http://$user:$password@$ip/ &>1 
+							exit 0
+						fi
+					done
+					tput setaf 2
+					echo "Adresse IP : $ip"
+					echo "Adresse MAC : $macaddr"
+					tput bold
+					tput setaf 1
+					echo "Aucun mot de passe testé ne marche : à vous de jouer !"
+					echo "Lien direct : http://$ip:80/"
+					echo
+					tput sgr0
+					echo " Vous pouvez chercher sur : http://www.routerpasswords.com/ "
+					echo
+					read -p "Ouvrir le navigateur ? [CTRL+C pour quitter] " -n 1 -r
+					firefox http://$ip/ &>1 
+					exit 0
+				fi	
+			tput sgr0
+			echo
+		else
+			tput bold
+		        tput setaf 2
+	        	echo "l'IP répond mais ne semble pas avoir de page web..."
+	        	tput sgr0
+        		echo
+		fi
+   fi
+ done
+done
+
+### On a pas trouvé l'IP ...
+tput bold
+tput setaf 1
+echo "l'IP n'a pas été trouvée ..."
+echo
+echo
+tput sgr0
+exit 0
+
