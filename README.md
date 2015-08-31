@@ -1,2 +1,2 @@
-# confs
-Linux Configuration Files
+# LinuxConfs 
+Linux Configuration Files (scripts, /etc ...)
